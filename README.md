@@ -1,93 +1,148 @@
 # Placer.ai Task
 
-A Node.js + Express + TypeScript API server with robust error handling and development tools.
+A full-stack application with a Node.js + Express + TypeScript backend API and PostgreSQL database.
 
-## Features
+## 🏗️ Project Structure
 
+```
+placerAi/
+├── backend/                   # Backend API server
+│   ├── src/                   # Source code
+│   │   ├── lib/              # Database and utilities
+│   │   ├── middleware/       # Express middleware
+│   │   ├── routes/           # API routes
+│   │   ├── index.ts          # Application entry point
+│   │   └── types.ts          # TypeScript definitions
+│   ├── prisma/               # Database schema and migrations
+│   ├── .env                  # Environment variables
+│   ├── package.json          # Backend dependencies
+│   └── README.md             # Backend documentation
+├── frontend/                 # Frontend application (to be added)
+└── README.md                 # This file
+```
+
+## 🚀 Features
+
+### Backend
 - 🚀 **Express.js** with TypeScript
-- 🔒 **CORS** configured for `http://localhost:5173`
+- �️ **PostgreSQL** database with Prisma ORM
+- 👤 **User management** CRUD operations
+- �🔒 **CORS** configured for frontend integration
 - 🛡️ **Centralized error handling** middleware
-- 📊 **Zod** for data validation
-- 📁 **File upload** support with Multer
-- 📄 **CSV parsing** capabilities
-- ⚡ **Hot reload** with ts-node-dev
-- 🔧 **Environment configuration** with dotenv
+- 📊 **Type-safe** API responses
+- ⚡ **Hot reload** development server
 
-## Quick Start
+## �️ Getting Started
 
-1. **Install dependencies:**
+### Prerequisites
+- Node.js (v18 or higher)
+- PostgreSQL database
+- npm or yarn
+
+### Backend Setup
+
+1. **Navigate to backend directory:**
+   ```bash
+   cd backend
+   ```
+
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-2. **Setup environment:**
-   ```bash
-   cp .env.example .env
+3. **Configure environment:**
+   The `.env` file is already configured with:
+   ```env
+   DATABASE_URL="postgresql://postgres:23203Omer@localhost:5433/demoDv?schema=public"
+   NODE_ENV=development
+   PORT=4000
    ```
 
-3. **Start development server:**
+4. **Generate Prisma client:**
+   ```bash
+   npm run prisma:generate
+   ```
+
+5. **Run database migrations:**
+   ```bash
+   npm run prisma:migrate
+   ```
+
+6. **Start development server:**
    ```bash
    npm run dev
    ```
 
-4. **Build for production:**
-   ```bash
-   npm run build
-   npm start
-   ```
+The backend server will start on `http://localhost:4000`
 
-## Project Structure
+## 📡 API Endpoints
 
-```
-src/
-├── index.ts           # Main application entry point
-├── types.ts           # TypeScript type definitions
-├── routes/            # API route handlers
-│   └── index.ts       # Sample routes
-├── middleware/        # Express middleware
-│   └── errorHandler.ts # Centralized error handling
-└── lib/               # Utility functions and libraries
-```
-
-## API Endpoints
-
+### Health & Info
 - `GET /api/` - Welcome message
-- `GET /api/health` - Health check endpoint
+- `GET /api/health` - Health check
 
-## Scripts
+### Users
+- `GET /api/users` - Get all users
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build TypeScript to JavaScript
-- `npm start` - Start production server
-- `npm test` - Run tests (placeholder)
+### Example Usage
 
-## Environment Variables
+**Create a user:**
+```bash
+curl -X POST http://localhost:4000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "email": "john@example.com"}'
+```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `4000` | Server port |
+**Get all users:**
+```bash
+curl http://localhost:4000/api/users
+```
 
-## Dependencies
+## 🗄️ Database Schema
 
-### Production
-- **express** - Web framework
-- **cors** - Cross-origin resource sharing
-- **dotenv** - Environment variable management
-- **zod** - Schema validation
-- **multer** - File upload handling
-- **csv-parse** - CSV file parsing
+```prisma
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+```
 
-### Development
-- **typescript** - TypeScript support
-- **ts-node-dev** - Development server with hot reload
-- **@types/*** - TypeScript definitions
+## 📚 Documentation
 
-## Error Handling
+- [Backend API Documentation](./backend/README.md) - Detailed backend setup and API reference
 
-The application includes a centralized error handling system:
+## 🔧 Development
 
-- Custom `AppError` class for operational errors
-- Global error handler middleware
-- Async error handling wrapper
-- 404 handler for undefined routes
-- Development vs production error responses
+### Backend Scripts
+```bash
+cd backend
+
+# Development
+npm run dev              # Start with hot reload
+npm run build           # Build TypeScript
+npm start               # Start production server
+
+# Database
+npm run prisma:generate # Generate Prisma client
+npm run prisma:migrate  # Run migrations
+npm run prisma:studio   # Open Prisma Studio
+```
+
+## 🚦 Status
+
+- ✅ Backend API with TypeScript
+- ✅ PostgreSQL database with Prisma
+- ✅ User CRUD operations
+- ✅ Error handling & validation
+- ⏳ Frontend (to be implemented)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request

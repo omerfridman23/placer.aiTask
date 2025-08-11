@@ -1,13 +1,21 @@
 {
-  "name": "placerai",
+  "name": "placerai-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Backend API for Placer.ai",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prisma:generate": "npx prisma generate",
+    "prisma:migrate": "npx prisma migrate dev",
+    "prisma:studio": "npx prisma studio",
+    "prisma:seed": "npx ts-node prisma/seed.ts",
+    "db:seed": "npm run prisma:seed"
+  },
+  "prisma": {
+    "seed": "npx ts-node prisma/seed.ts"
   },
   "repository": {
     "type": "git",
@@ -21,11 +29,13 @@
   },
   "homepage": "https://github.com/omerfridman23/placer.aiTask#readme",
   "dependencies": {
+    "@prisma/client": "^4.16.2",
     "cors": "^2.8.5",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "multer": "^2.0.2",
+    "prisma": "^4.16.2",
     "zod": "^4.0.17"
   },
   "devDependencies": {

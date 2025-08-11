@@ -23,3 +23,18 @@ export class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 }
+
+// User-related types
+export interface CreateUserRequest {
+  name: string;
+  last_name?: string;
+  email: string;
+}
+
+export interface UserResponse {
+  id: number;
+  name: string;
+  last_name: string | null;
+  email: string;
+  createdAt: Date;
+}
