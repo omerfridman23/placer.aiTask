@@ -10,10 +10,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  last_name String?
-  email     String   @unique
-  createdAt DateTime @default(now())
+model Chain {
+  chainId   String  @id     @map("chain_id")
+  chainName String  @unique @map("chain_name")
+
+  stores    Store[]
+  entities  Entity[] @relation("EntityChain")
+
+  @@map("chains")
+  @@index([chainName])
+}
+
+model Store {
+  // Composite PK: (chain_id, store_id)
+  chainId       String @map("chain_id")
+  storeId       String @map("store_id")
+  chain         Chain  @relation(fields: [chainId], references: [chainId])
+
+  // Store (location) attributes
+  name          String
+  geolocation   String?                      // WKT
+  country       String
+  stateCode     String   @map("state_code")
+  stateName     String   @map("state_name")
+  city          String
+  postalCode    String?  @map("postal_code")
+  formattedCity String?  @map("formatted_city")
+  streetAddress String?  @map("street_address")
+  subCategory   String?  @map("sub_category")
+  dma           String?  @map("dma")
+  cbsa          String?  @map("cbsa")
+  areaSqft      Int?     @map("area_sqft")
+  dateOpened    DateTime? @map("date_opened")
+  dateClosed    DateTime? @map("date_closed")
+
+  entities      Entity[] @relation("EntityStore")
+
+  @@id([chainId, storeId])
+  @@map("stores")
+  @@index([subCategory])
+  @@index([dma])
+  @@index([stateCode, city])
+  @@index([dateClosed])
+}
+
+model Entity {
+  entityId        String   @id @map("entity_id")
+  entityType      String   @map("entity_type")
+
+  // Metrics for the given period (Oct 2023)
+  footTraffic     Int      @map("foot_traffic")
+  sales           Decimal? @db.Decimal(18, 2)
+  avgDwellTimeMin Int?     @map("avg_dwell_time_min")
+  ftPerSqft       Decimal? @db.Decimal(18, 4) @map("ft_per_sqft")
+
+  // Foreign keys (entity has a branch and a store)
+  chainId         String   @map("chain_id")
+  storeId         String   @map("store_id")
+
+  chain           Chain    @relation("EntityChain", fields: [chainId], references: [chainId])
+  store           Store    @relation("EntityStore", fields: [chainId, storeId], references: [chainId, storeId])
+
+  @@map("entities")
+  @@index([chainId]) // quick chain filter (name comes via join)
 }
