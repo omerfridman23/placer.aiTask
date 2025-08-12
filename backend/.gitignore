@@ -58,3 +58,7 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# CSV data files
+*.csv
+placerAiData.csv
