@@ -35,8 +35,8 @@ model Store {
   areaSqft      Int?      @map("area_sqft")
   dateOpened    DateTime? @map("date_opened")
   dateClosed    DateTime? @map("date_closed")
-  entities      Entity[]  @relation("EntityStore")
   chain         Chain     @relation(fields: [chainId], references: [chainId])
+  entities      Entity[]
 
   @@id([chainId, storeId])
   @@index([subCategory])
@@ -54,10 +54,18 @@ model Entity {
   avgDwellTimeMin Int?     @map("avg_dwell_time_min")
   ftPerSqft       Decimal? @map("ft_per_sqft") @db.Decimal(18, 4)
   chainId         String   @map("chain_id")
-  storeId         String   @map("store_id")
+  storeId         String?  @map("store_id")
+  // Additional fields for entities without stores
+  name            String?  
+  city            String?
+  stateCode       String?  @map("state_code")
+  stateName       String?  @map("state_name")
+  subCategory     String?  @map("sub_category")
+  dma             String?
   chain           Chain    @relation("EntityChain", fields: [chainId], references: [chainId])
-  store           Store    @relation("EntityStore", fields: [chainId, storeId], references: [chainId, storeId])
+  store           Store?   @relation(fields: [chainId, storeId], references: [chainId, storeId])
 
   @@index([chainId])
+  @@index([storeId])
   @@map("entities")
 }

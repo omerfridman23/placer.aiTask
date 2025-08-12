@@ -11,108 +11,112 @@ import { VenueListItem, VenueFilters, VenueSummaryStats } from './venues.types';
 function buildWhereClause(filters: VenueFilters): any {
   const where: any = {};
 
-  // Define all filter mappings
-  const filterMappings = [
-    // Chain filters
-    { 
-      filter: 'chainName', 
-      target: 'chain', 
-      field: 'chainName', 
-      type: 'contains' 
-    },
-    // Store filters
-    { 
-      filter: 'category', 
-      target: 'store', 
-      field: 'subCategory', 
-      type: 'contains' 
-    },
-    { 
-      filter: 'dma', 
-      target: 'store', 
-      field: 'dma', 
-      type: 'contains' 
-    },
-    { 
-      filter: 'city', 
-      target: 'store', 
-      field: 'city', 
-      type: 'contains' 
-    },
-    { 
-      filter: 'stateCode', 
-      target: 'store', 
-      field: 'stateCode', 
-      type: 'equals' 
-    },
-    { 
-      filter: 'stateName', 
-      target: 'store', 
-      field: 'stateName', 
-      type: 'contains' 
-    },
-    // Date filters
-    { 
-      filter: 'openedAfter', 
-      target: 'store', 
-      field: 'dateOpened', 
-      type: 'gte' 
-    },
-    { 
-      filter: 'openedBefore', 
-      target: 'store', 
-      field: 'dateOpened', 
-      type: 'lte' 
-    },
-    { 
-      filter: 'closedAfter', 
-      target: 'store', 
-      field: 'dateClosed', 
-      type: 'gte' 
-    },
-    { 
-      filter: 'closedBefore', 
-      target: 'store', 
-      field: 'dateClosed', 
-      type: 'lte' 
-    }
-  ];
+  // Chain filter
+  if (filters.chainName) {
+    where.chain = {
+      chainName: {
+        contains: filters.chainName,
+        mode: 'insensitive'
+      }
+    };
+  }
 
-  // Apply all filters
-  filterMappings.forEach(({ filter, target, field, type }) => {
-    const filterValue = filters[filter as keyof VenueFilters];
-    if (filterValue) {
-      if (!where[target]) {
-        where[target] = {};
+  // Store filters - only filter by store data for now
+  // (entities without stores won't be filtered by these fields)
+  if (filters.category) {
+    where.store = {
+      ...where.store,
+      subCategory: {
+        contains: filters.category,
+        mode: 'insensitive'
       }
-      
-      if (type === 'contains') {
-        where[target][field] = {
-          contains: filterValue,
-          mode: 'insensitive'
-        };
-      } else if (type === 'equals') {
-        where[target][field] = {
-          equals: (filterValue as string).toUpperCase()
-        };
-      } else if (type === 'gte') {
-        where[target][field] = {
-          gte: new Date(filterValue as string)
-        };
-      } else if (type === 'lte') {
-        where[target][field] = {
-          lte: new Date(filterValue as string)
-        };
+    };
+  }
+
+  if (filters.dma) {
+    where.store = {
+      ...where.store,
+      dma: {
+        contains: filters.dma,
+        mode: 'insensitive'
       }
-    }
-  });
+    };
+  }
+
+  if (filters.city) {
+    where.store = {
+      ...where.store,
+      city: {
+        contains: filters.city,
+        mode: 'insensitive'
+      }
+    };
+  }
+
+  if (filters.stateCode) {
+    where.store = {
+      ...where.store,
+      stateCode: {
+        equals: filters.stateCode.toUpperCase()
+      }
+    };
+  }
+
+  if (filters.stateName) {
+    where.store = {
+      ...where.store,
+      stateName: {
+        contains: filters.stateName,
+        mode: 'insensitive'
+      }
+    };
+  }
+
+  // Date filters
+  if (filters.openedAfter) {
+    where.store = {
+      ...where.store,
+      dateOpened: {
+        gte: new Date(filters.openedAfter)
+      }
+    };
+  }
+
+  if (filters.openedBefore) {
+    where.store = {
+      ...where.store,
+      dateOpened: {
+        ...where.store?.dateOpened,
+        lte: new Date(filters.openedBefore)
+      }
+    };
+  }
+
+  if (filters.closedAfter) {
+    where.store = {
+      ...where.store,
+      dateClosed: {
+        gte: new Date(filters.closedAfter)
+      }
+    };
+  }
+
+  if (filters.closedBefore) {
+    where.store = {
+      ...where.store,
+      dateClosed: {
+        ...where.store?.dateClosed,
+        lte: new Date(filters.closedBefore)
+      }
+    };
+  }
 
   // Handle special open/closed filter
   if (filters.open !== undefined) {
-    if (!where.store) {
-      where.store = {};
-    }
-    where.store.dateClosed = filters.open ? null : { not: null };
+    where.store = {
+      ...where.store,
+      dateClosed: filters.open ? null : { not: null }
+    };
   }
 
   return where;
@@ -176,21 +180,21 @@ export async function listVenues(
 
   const totalItems = await prisma.entity.count({ where });
 
-  // Map to flat DTO structure
+  // Map to flat DTO structure, handling entities with/without stores
   const items: VenueListItem[] = entities.map((entity: any) => ({
     entityId: entity.entityId,
-    name: entity.store.name, // prefer store.name
+    name: entity.store?.name || entity.name || `Entity ${entity.entityId}`, // Use store name, fallback to entity name, or generated name
     chainId: entity.chain?.chainId || null,
     chainName: entity.chain?.chainName || '',
-    storeId: entity.store.storeId,
-    subCategory: entity.store.subCategory,
-    dma: entity.store.dma,
-    city: entity.store.city,
-    stateCode: entity.store.stateCode,
-    stateName: entity.store.stateName,
-    open: entity.store.dateClosed === null,
-    dateOpened: entity.store.dateOpened?.toISOString() || null,
-    dateClosed: entity.store.dateClosed?.toISOString() || null,
+    storeId: entity.store?.storeId || null,
+    subCategory: entity.store?.subCategory || entity.subCategory || null,
+    dma: entity.store?.dma || entity.dma || null,
+    city: entity.store?.city || entity.city || null,
+    stateCode: entity.store?.stateCode || entity.stateCode || null,
+    stateName: entity.store?.stateName || entity.stateName || null,
+    open: entity.store?.dateClosed === null || !entity.store, // Entities without stores are considered "open"
+    dateOpened: entity.store?.dateOpened?.toISOString() || null,
+    dateClosed: entity.store?.dateClosed?.toISOString() || null,
     footTraffic: entity.footTraffic,
     sales: entity.sales?.toString() || null,
     ftPerSqft: entity.ftPerSqft?.toString() || null,
@@ -216,7 +220,7 @@ export async function getFilterOptions(): Promise<{
   });
   const chainNames = chains.map(chain => chain.chainName);
 
-  // Get unique categories (sub categories)
+  // Get unique categories from stores (entities without stores will need manual handling)
   const categories = await prisma.store.findMany({
     select: { subCategory: true },
     where: { subCategory: { not: null } },
@@ -227,7 +231,7 @@ export async function getFilterOptions(): Promise<{
     .map(store => store.subCategory)
     .filter(Boolean) as string[];
 
-  // Get unique DMAs
+  // Get unique DMAs from stores
   const dmas = await prisma.store.findMany({
     select: { dma: true },
     where: { dma: { not: null } },
@@ -238,7 +242,7 @@ export async function getFilterOptions(): Promise<{
     .map(store => store.dma)
     .filter(Boolean) as string[];
 
-  // Get unique cities
+  // Get unique cities from stores
   const cities = await prisma.store.findMany({
     select: { city: true },
     distinct: ['city'],
@@ -247,7 +251,7 @@ export async function getFilterOptions(): Promise<{
   });
   const cityNames = cities.map(store => store.city);
 
-  // Get unique states
+  // Get unique states from stores
   const states = await prisma.store.findMany({
     select: { stateCode: true, stateName: true },
     distinct: ['stateCode'],
@@ -279,9 +283,7 @@ export async function getVenueSummaryStats(filters: VenueFilters = {}): Promise<
     aggregateStats,
     openVenuesCount,
     closedVenuesCount,
-    uniqueChainsCount,
-    uniqueCitiesCount,
-    uniqueStatesCount
+    uniqueChainsCount
   ] = await Promise.all([
     // Total venues count
     prisma.entity.count({ where }),
@@ -299,25 +301,32 @@ export async function getVenueSummaryStats(filters: VenueFilters = {}): Promise<
       }
     }),
     
-    // Open venues count
+    // Open venues count (entities with stores that aren't closed, plus entities without stores)
     prisma.entity.count({
       where: {
         ...where,
-        store: {
-          ...where.store,
-          dateClosed: null
-        }
+        OR: [
+          {
+            AND: [
+              { storeId: { not: null } },
+              { store: { dateClosed: null } }
+            ]
+          },
+          {
+            storeId: null // Entities without stores are considered "open"
+          }
+        ]
       }
     }),
     
-    // Closed venues count
+    // Closed venues count (only entities with stores that are closed)
     prisma.entity.count({
       where: {
         ...where,
-        store: {
-          ...where.store,
-          dateClosed: { not: null }
-        }
+        AND: [
+          { storeId: { not: null } },
+          { store: { dateClosed: { not: null } } }
+        ]
       }
     }),
     
@@ -326,25 +335,42 @@ export async function getVenueSummaryStats(filters: VenueFilters = {}): Promise<
       where,
       select: { chainId: true },
       distinct: ['chainId']
-    }).then(result => result.length),
-    
+    }).then(result => result.length)
+  ]);
+
+  // For cities and states, get them from stores only (simpler approach)
+  const [uniqueCitiesCount, uniqueStatesCount] = await Promise.all([
     // Unique cities count
     prisma.entity.findMany({
-      where,
-      select: { store: { select: { city: true } } },
-      distinct: ['storeId'] // Use storeId for distinct as city is in nested relation
-    }).then(async (stores) => {
-      const cities = new Set(stores.map(s => s.store.city));
+      where: {
+        ...where,
+        storeId: { not: null } // Only entities with stores
+      },
+      select: { 
+        store: { 
+          select: { city: true } 
+        } 
+      },
+      distinct: ['storeId']
+    }).then(stores => {
+      const cities = new Set(stores.map(s => s.store?.city).filter(Boolean));
       return cities.size;
     }),
     
     // Unique states count
     prisma.entity.findMany({
-      where,
-      select: { store: { select: { stateCode: true } } },
-      distinct: ['storeId'] // Use storeId for distinct as stateCode is in nested relation
-    }).then(async (stores) => {
-      const states = new Set(stores.map(s => s.store.stateCode));
+      where: {
+        ...where,
+        storeId: { not: null } // Only entities with stores
+      },
+      select: { 
+        store: { 
+          select: { stateCode: true } 
+        } 
+      },
+      distinct: ['storeId']
+    }).then(stores => {
+      const states = new Set(stores.map(s => s.store?.stateCode).filter(Boolean));
       return states.size;
     })
   ]);
