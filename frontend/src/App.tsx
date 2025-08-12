@@ -25,8 +25,8 @@ function App() {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
-      const data = await response.json()
-      setUsers(data)
+      const apiResponse = await response.json()
+      setUsers(apiResponse.data || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch users')
       console.error('Error fetching users:', err)

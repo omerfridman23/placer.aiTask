@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import indexRoutes from './routes/index';
+import venuesRouter from './modules/venues/venues.router';
 import prisma from './lib/prisma';
 
 // Load environment variables
@@ -26,6 +27,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Routes
 app.use('/api', indexRoutes);
+app.use('/api/venues', venuesRouter);
 
 // Handle 404 errors
 app.use(notFound);
