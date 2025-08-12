@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { getVenues, getVenueFilterOptions } from './venues.controller';
+import { getVenues, getVenueFilterOptions, getVenueSummary } from './venues.controller';
 
 const venuesRouter = Router();
 
@@ -12,5 +12,8 @@ venuesRouter.get('/', getVenues);
 
 // GET /api/venues/filter-options - Get available filter options
 venuesRouter.get('/filter-options', getVenueFilterOptions);
+
+// GET /api/venues/summary - Get venue summary statistics
+venuesRouter.get('/summary', getVenueSummary);
 
 export default venuesRouter;

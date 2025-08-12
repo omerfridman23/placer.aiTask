@@ -3,7 +3,120 @@
  */
 
 import prisma from '../../lib/prisma';
-import { VenueListItem, VenueFilters } from './venues.types';
+import { VenueListItem, VenueFilters, VenueSummaryStats } from './venues.types';
+
+/**
+ * Build Prisma where clause from filters
+ */
+function buildWhereClause(filters: VenueFilters): any {
+  const where: any = {};
+
+  // Define all filter mappings
+  const filterMappings = [
+    // Chain filters
+    { 
+      filter: 'chainName', 
+      target: 'chain', 
+      field: 'chainName', 
+      type: 'contains' 
+    },
+    // Store filters
+    { 
+      filter: 'category', 
+      target: 'store', 
+      field: 'subCategory', 
+      type: 'contains' 
+    },
+    { 
+      filter: 'dma', 
+      target: 'store', 
+      field: 'dma', 
+      type: 'contains' 
+    },
+    { 
+      filter: 'city', 
+      target: 'store', 
+      field: 'city', 
+      type: 'contains' 
+    },
+    { 
+      filter: 'stateCode', 
+      target: 'store', 
+      field: 'stateCode', 
+      type: 'equals' 
+    },
+    { 
+      filter: 'stateName', 
+      target: 'store', 
+      field: 'stateName', 
+      type: 'contains' 
+    },
+    // Date filters
+    { 
+      filter: 'openedAfter', 
+      target: 'store', 
+      field: 'dateOpened', 
+      type: 'gte' 
+    },
+    { 
+      filter: 'openedBefore', 
+      target: 'store', 
+      field: 'dateOpened', 
+      type: 'lte' 
+    },
+    { 
+      filter: 'closedAfter', 
+      target: 'store', 
+      field: 'dateClosed', 
+      type: 'gte' 
+    },
+    { 
+      filter: 'closedBefore', 
+      target: 'store', 
+      field: 'dateClosed', 
+      type: 'lte' 
+    }
+  ];
+
+  // Apply all filters
+  filterMappings.forEach(({ filter, target, field, type }) => {
+    const filterValue = filters[filter as keyof VenueFilters];
+    if (filterValue) {
+      if (!where[target]) {
+        where[target] = {};
+      }
+      
+      if (type === 'contains') {
+        where[target][field] = {
+          contains: filterValue,
+          mode: 'insensitive'
+        };
+      } else if (type === 'equals') {
+        where[target][field] = {
+          equals: (filterValue as string).toUpperCase()
+        };
+      } else if (type === 'gte') {
+        where[target][field] = {
+          gte: new Date(filterValue as string)
+        };
+      } else if (type === 'lte') {
+        where[target][field] = {
+          lte: new Date(filterValue as string)
+        };
+      }
+    }
+  });
+
+  // Handle special open/closed filter
+  if (filters.open !== undefined) {
+    if (!where.store) {
+      where.store = {};
+    }
+    where.store.dateClosed = filters.open ? null : { not: null };
+  }
+
+  return where;
+}
 
 /**
  * Fetch paginated list of venues with related chain and store data
@@ -17,72 +130,7 @@ export async function listVenues(
 ): Promise<{ items: VenueListItem[]; totalItems: number }> {
    
   // Build where clause based on filters
-  const where: any = {};
-
-  if (filters.chainName) {
-    where.chain = {
-      chainName: {
-        contains: filters.chainName,
-        mode: 'insensitive'
-      }
-    };
-  }
-
-  if (filters.category) {
-    where.store = {
-      ...where.store,
-      subCategory: {
-        contains: filters.category,
-        mode: 'insensitive'
-      }
-    };
-  }
-
-  if (filters.dma) {
-    where.store = {
-      ...where.store,
-      dma: {
-        contains: filters.dma,
-        mode: 'insensitive'
-      }
-    };
-  }
-
-  if (filters.city) {
-    where.store = {
-      ...where.store,
-      city: {
-        contains: filters.city,
-        mode: 'insensitive'
-      }
-    };
-  }
-
-  if (filters.stateCode) {
-    where.store = {
-      ...where.store,
-      stateCode: {
-        equals: filters.stateCode.toUpperCase()
-      }
-    };
-  }
-
-  if (filters.stateName) {
-    where.store = {
-      ...where.store,
-      stateName: {
-        contains: filters.stateName,
-        mode: 'insensitive'
-      }
-    };
-  }
-
-  if (filters.open !== undefined) {
-    where.store = {
-      ...where.store,
-      dateClosed: filters.open ? null : { not: null }
-    };
-  }
+  const where = buildWhereClause(filters);
 
   // Build order by clause
   let orderBy: any = {};
@@ -119,7 +167,8 @@ export async function listVenues(
           stateName: true, 
           subCategory: true, 
           dma: true, 
-          dateClosed: true 
+          dateClosed: true,
+          dateOpened: true 
         } 
       }
     }
@@ -140,6 +189,8 @@ export async function listVenues(
     stateCode: entity.store.stateCode,
     stateName: entity.store.stateName,
     open: entity.store.dateClosed === null,
+    dateOpened: entity.store.dateOpened?.toISOString() || null,
+    dateClosed: entity.store.dateClosed?.toISOString() || null,
     footTraffic: entity.footTraffic,
     sales: entity.sales?.toString() || null,
     ftPerSqft: entity.ftPerSqft?.toString() || null,
@@ -213,5 +264,101 @@ export async function getFilterOptions(): Promise<{
     dmas: dmaNames,
     cities: cityNames,
     states: stateOptions
+  };
+}
+
+/**
+ * Get summary statistics for venues (respects filters)
+ */
+export async function getVenueSummaryStats(filters: VenueFilters = {}): Promise<VenueSummaryStats> {
+  const where = buildWhereClause(filters);
+
+  // Get aggregated stats
+  const [
+    totalVenues,
+    aggregateStats,
+    openVenuesCount,
+    closedVenuesCount,
+    uniqueChainsCount,
+    uniqueCitiesCount,
+    uniqueStatesCount
+  ] = await Promise.all([
+    // Total venues count
+    prisma.entity.count({ where }),
+    
+    // Aggregate foot traffic and sales
+    prisma.entity.aggregate({
+      where,
+      _sum: {
+        footTraffic: true,
+        sales: true
+      },
+      _avg: {
+        footTraffic: true,
+        sales: true
+      }
+    }),
+    
+    // Open venues count
+    prisma.entity.count({
+      where: {
+        ...where,
+        store: {
+          ...where.store,
+          dateClosed: null
+        }
+      }
+    }),
+    
+    // Closed venues count
+    prisma.entity.count({
+      where: {
+        ...where,
+        store: {
+          ...where.store,
+          dateClosed: { not: null }
+        }
+      }
+    }),
+    
+    // Unique chains count
+    prisma.entity.findMany({
+      where,
+      select: { chainId: true },
+      distinct: ['chainId']
+    }).then(result => result.length),
+    
+    // Unique cities count
+    prisma.entity.findMany({
+      where,
+      select: { store: { select: { city: true } } },
+      distinct: ['storeId'] // Use storeId for distinct as city is in nested relation
+    }).then(async (stores) => {
+      const cities = new Set(stores.map(s => s.store.city));
+      return cities.size;
+    }),
+    
+    // Unique states count
+    prisma.entity.findMany({
+      where,
+      select: { store: { select: { stateCode: true } } },
+      distinct: ['storeId'] // Use storeId for distinct as stateCode is in nested relation
+    }).then(async (stores) => {
+      const states = new Set(stores.map(s => s.store.stateCode));
+      return states.size;
+    })
+  ]);
+
+  return {
+    totalVenues,
+    totalFootTraffic: Number(aggregateStats._sum.footTraffic) || 0,
+    totalSales: Number(aggregateStats._sum.sales) || 0,
+    averageFootTraffic: Number(aggregateStats._avg.footTraffic) || 0,
+    averageSales: Number(aggregateStats._avg.sales) || 0,
+    openVenues: openVenuesCount,
+    closedVenues: closedVenuesCount,
+    uniqueChains: uniqueChainsCount,
+    uniqueCities: uniqueCitiesCount,
+    uniqueStates: uniqueStatesCount
   };
 }
